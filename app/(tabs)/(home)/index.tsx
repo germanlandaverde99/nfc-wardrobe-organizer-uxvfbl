@@ -369,9 +369,9 @@ export default function WardrobeScreen() {
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>
-                {clothingItems.filter(item => item.nfcTagId).length}
+                {clothingItems.filter(item => item.locationStatus === 'out-of-wardrobe').length}
               </Text>
-              <Text style={styles.statLabel}>NFC Tagged</Text>
+              <Text style={styles.statLabel}>Outside Wardrobe</Text>
             </View>
           </View>
 
