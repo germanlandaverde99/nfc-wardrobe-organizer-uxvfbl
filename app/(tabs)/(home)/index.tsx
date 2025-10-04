@@ -15,6 +15,8 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 
+export type LocationStatus = 'in-wardrobe' | 'out-of-wardrobe' | 'laundry';
+
 interface ClothingItem {
   id: string;
   name: string;
@@ -24,6 +26,9 @@ interface ClothingItem {
   nfcTagId?: string;
   imageUrl?: string;
   dateAdded: string;
+  locationStatus: LocationStatus;
+  timesWorn?: number;
+  lastWorn?: string;
 }
 
 export default function WardrobeScreen() {
@@ -36,6 +41,9 @@ export default function WardrobeScreen() {
       color: 'Blue',
       dateAdded: '2024-01-15',
       imageUrl: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=300&h=300&fit=crop',
+      locationStatus: 'in-wardrobe',
+      timesWorn: 5,
+      lastWorn: '2024-01-20',
     },
     {
       id: '2',
@@ -45,6 +53,9 @@ export default function WardrobeScreen() {
       color: 'White',
       dateAdded: '2024-01-10',
       imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop',
+      locationStatus: 'out-of-wardrobe',
+      timesWorn: 8,
+      lastWorn: '2024-01-18',
     },
     {
       id: '3',
@@ -54,10 +65,14 @@ export default function WardrobeScreen() {
       color: 'Black',
       dateAdded: '2024-01-08',
       imageUrl: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=300&h=300&fit=crop',
+      locationStatus: 'laundry',
+      timesWorn: 3,
+      lastWorn: '2024-01-19',
     },
   ]);
   const [isNfcSupported, setIsNfcSupported] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<LocationStatus | 'all'>('all');
 
   useEffect(() => {
     checkNfcSupport();
@@ -130,6 +145,49 @@ export default function WardrobeScreen() {
     });
   };
 
+  const getLocationIcon = (status: LocationStatus) => {
+    switch (status) {
+      case 'in-wardrobe':
+        return 'house';
+      case 'out-of-wardrobe':
+        return 'figure.walk';
+      case 'laundry':
+        return 'drop';
+      default:
+        return 'questionmark';
+    }
+  };
+
+  const getLocationColor = (status: LocationStatus) => {
+    switch (status) {
+      case 'in-wardrobe':
+        return '#4CAF50'; // Green
+      case 'out-of-wardrobe':
+        return '#FF9800'; // Orange
+      case 'laundry':
+        return '#2196F3'; // Blue
+      default:
+        return colors.textSecondary;
+    }
+  };
+
+  const getLocationLabel = (status: LocationStatus) => {
+    switch (status) {
+      case 'in-wardrobe':
+        return 'In Wardrobe';
+      case 'out-of-wardrobe':
+        return 'Out of Wardrobe';
+      case 'laundry':
+        return 'In Laundry';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  const filteredItems = selectedFilter === 'all' 
+    ? clothingItems 
+    : clothingItems.filter(item => item.locationStatus === selectedFilter);
+
   const renderClothingItem = (item: ClothingItem) => (
     <TouchableOpacity
       key={item.id}
@@ -152,11 +210,17 @@ export default function WardrobeScreen() {
             <IconSymbol name="wave.3.right" size={12} color={colors.card} />
           </View>
         )}
+        <View style={[styles.locationBadge, { backgroundColor: getLocationColor(item.locationStatus) }]}>
+          <IconSymbol name={getLocationIcon(item.locationStatus)} size={12} color={colors.card} />
+        </View>
       </View>
       <View style={styles.itemInfo}>
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemCategory}>{item.category}</Text>
         <Text style={styles.itemColor}>{item.color}</Text>
+        <Text style={[styles.locationStatus, { color: getLocationColor(item.locationStatus) }]}>
+          {getLocationLabel(item.locationStatus)}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -168,6 +232,85 @@ export default function WardrobeScreen() {
     >
       <IconSymbol name="plus" color={colors.primary} size={24} />
     </TouchableOpacity>
+  );
+
+  const renderLocationFilter = () => (
+    <View style={styles.filterSection}>
+      <Text style={styles.sectionTitle}>Filter by Location</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            selectedFilter === 'all' && styles.filterButtonActive
+          ]}
+          onPress={() => setSelectedFilter('all')}
+        >
+          <Text style={[
+            styles.filterButtonText,
+            selectedFilter === 'all' && styles.filterButtonTextActive
+          ]}>
+            All ({clothingItems.length})
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            selectedFilter === 'in-wardrobe' && styles.filterButtonActive,
+            { borderColor: getLocationColor('in-wardrobe') }
+          ]}
+          onPress={() => setSelectedFilter('in-wardrobe')}
+        >
+          <IconSymbol name={getLocationIcon('in-wardrobe')} size={16} color={
+            selectedFilter === 'in-wardrobe' ? colors.card : getLocationColor('in-wardrobe')
+          } />
+          <Text style={[
+            styles.filterButtonText,
+            selectedFilter === 'in-wardrobe' && styles.filterButtonTextActive
+          ]}>
+            In Wardrobe ({clothingItems.filter(item => item.locationStatus === 'in-wardrobe').length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            selectedFilter === 'out-of-wardrobe' && styles.filterButtonActive,
+            { borderColor: getLocationColor('out-of-wardrobe') }
+          ]}
+          onPress={() => setSelectedFilter('out-of-wardrobe')}
+        >
+          <IconSymbol name={getLocationIcon('out-of-wardrobe')} size={16} color={
+            selectedFilter === 'out-of-wardrobe' ? colors.card : getLocationColor('out-of-wardrobe')
+          } />
+          <Text style={[
+            styles.filterButtonText,
+            selectedFilter === 'out-of-wardrobe' && styles.filterButtonTextActive
+          ]}>
+            Out ({clothingItems.filter(item => item.locationStatus === 'out-of-wardrobe').length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            selectedFilter === 'laundry' && styles.filterButtonActive,
+            { borderColor: getLocationColor('laundry') }
+          ]}
+          onPress={() => setSelectedFilter('laundry')}
+        >
+          <IconSymbol name={getLocationIcon('laundry')} size={16} color={
+            selectedFilter === 'laundry' ? colors.card : getLocationColor('laundry')
+          } />
+          <Text style={[
+            styles.filterButtonText,
+            selectedFilter === 'laundry' && styles.filterButtonTextActive
+          ]}>
+            Laundry ({clothingItems.filter(item => item.locationStatus === 'laundry').length})
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 
   return (
@@ -220,24 +363,37 @@ export default function WardrobeScreen() {
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>
+                {clothingItems.filter(item => item.locationStatus === 'in-wardrobe').length}
+              </Text>
+              <Text style={styles.statLabel}>In Wardrobe</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>
                 {clothingItems.filter(item => item.nfcTagId).length}
               </Text>
               <Text style={styles.statLabel}>NFC Tagged</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {new Set(clothingItems.map(item => item.category)).size}
-              </Text>
-              <Text style={styles.statLabel}>Categories</Text>
-            </View>
           </View>
+
+          {/* Location Filter */}
+          {renderLocationFilter()}
 
           {/* Clothing Items Grid */}
           <View style={styles.itemsSection}>
-            <Text style={styles.sectionTitle}>Your Clothes</Text>
+            <Text style={styles.sectionTitle}>
+              {selectedFilter === 'all' ? 'Your Clothes' : `${getLocationLabel(selectedFilter as LocationStatus)} Items`}
+            </Text>
             <View style={styles.itemsGrid}>
-              {clothingItems.map(renderClothingItem)}
+              {filteredItems.map(renderClothingItem)}
             </View>
+            {filteredItems.length === 0 && (
+              <View style={styles.emptyState}>
+                <IconSymbol name="tshirt" size={60} color={colors.textSecondary} />
+                <Text style={styles.emptyStateText}>
+                  No items found in this location
+                </Text>
+              </View>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -310,6 +466,36 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterScroll: {
+    flexGrow: 0,
+  },
+  filterButton: {
+    backgroundColor: colors.card,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: colors.textSecondary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  filterButtonTextActive: {
+    color: colors.card,
+  },
   itemsSection: {
     marginBottom: 100, // Extra space for floating tab bar
   },
@@ -352,6 +538,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  locationBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   itemInfo: {
     gap: 2,
   },
@@ -368,7 +564,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
   },
+  locationStatus: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   headerButton: {
     padding: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    marginTop: 12,
   },
 });

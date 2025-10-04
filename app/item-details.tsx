@@ -12,6 +12,7 @@ import {
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors, commonStyles } from '@/styles/commonStyles';
+import { LocationStatus } from './(tabs)/(home)/index';
 
 // Mock data - in a real app, this would come from a database
 const mockItems = {
@@ -26,6 +27,7 @@ const mockItems = {
     nfcTagId: 'nfc_001',
     lastWorn: '2024-01-20',
     timesWorn: 5,
+    locationStatus: 'in-wardrobe' as LocationStatus,
   },
   '2': {
     id: '2',
@@ -37,6 +39,7 @@ const mockItems = {
     imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop',
     lastWorn: '2024-01-18',
     timesWorn: 8,
+    locationStatus: 'out-of-wardrobe' as LocationStatus,
   },
   '3': {
     id: '3',
@@ -48,6 +51,7 @@ const mockItems = {
     imageUrl: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=400&fit=crop',
     lastWorn: '2024-01-19',
     timesWorn: 3,
+    locationStatus: 'laundry' as LocationStatus,
   },
 };
 
@@ -71,6 +75,45 @@ export default function ItemDetailsScreen() {
       </>
     );
   }
+
+  const getLocationIcon = (status: LocationStatus) => {
+    switch (status) {
+      case 'in-wardrobe':
+        return 'house';
+      case 'out-of-wardrobe':
+        return 'figure.walk';
+      case 'laundry':
+        return 'drop';
+      default:
+        return 'questionmark';
+    }
+  };
+
+  const getLocationColor = (status: LocationStatus) => {
+    switch (status) {
+      case 'in-wardrobe':
+        return '#4CAF50'; // Green
+      case 'out-of-wardrobe':
+        return '#FF9800'; // Orange
+      case 'laundry':
+        return '#2196F3'; // Blue
+      default:
+        return colors.textSecondary;
+    }
+  };
+
+  const getLocationLabel = (status: LocationStatus) => {
+    switch (status) {
+      case 'in-wardrobe':
+        return 'In Wardrobe';
+      case 'out-of-wardrobe':
+        return 'Out of Wardrobe';
+      case 'laundry':
+        return 'In Laundry';
+      default:
+        return 'Unknown';
+    }
+  };
 
   const handleEdit = () => {
     Alert.alert('Edit Item', 'Edit functionality would be implemented here.');
@@ -100,14 +143,64 @@ export default function ItemDetailsScreen() {
       ...prev,
       lastWorn: today,
       timesWorn: prev.timesWorn + 1,
+      locationStatus: 'out-of-wardrobe' as LocationStatus, // Automatically mark as out when worn
     }));
-    Alert.alert('Updated', 'Item marked as worn today!');
+    Alert.alert('Updated', 'Item marked as worn today and moved to "Out of Wardrobe"!');
+  };
+
+  const updateLocationStatus = (newStatus: LocationStatus) => {
+    setItem(prev => ({
+      ...prev,
+      locationStatus: newStatus,
+    }));
+    console.log('Updated location status to:', newStatus);
+  };
+
+  const showLocationOptions = () => {
+    const options = [
+      {
+        text: 'In Wardrobe',
+        onPress: () => updateLocationStatus('in-wardrobe'),
+        style: item.locationStatus === 'in-wardrobe' ? 'default' : 'default',
+      },
+      {
+        text: 'Out of Wardrobe',
+        onPress: () => updateLocationStatus('out-of-wardrobe'),
+        style: item.locationStatus === 'out-of-wardrobe' ? 'default' : 'default',
+      },
+      {
+        text: 'In Laundry',
+        onPress: () => updateLocationStatus('laundry'),
+        style: item.locationStatus === 'laundry' ? 'default' : 'default',
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ];
+
+    Alert.alert('Update Location', 'Where is this item currently?', options);
   };
 
   const renderHeaderRight = () => (
     <TouchableOpacity onPress={handleEdit} style={styles.headerButton}>
       <IconSymbol name="pencil" color={colors.primary} size={20} />
     </TouchableOpacity>
+  );
+
+  const renderLocationSelector = () => (
+    <View style={styles.locationSection}>
+      <Text style={styles.sectionTitle}>Current Location</Text>
+      <TouchableOpacity style={styles.locationCard} onPress={showLocationOptions}>
+        <View style={styles.locationInfo}>
+          <View style={[styles.locationIconContainer, { backgroundColor: getLocationColor(item.locationStatus) }]}>
+            <IconSymbol name={getLocationIcon(item.locationStatus)} size={24} color={colors.card} />
+          </View>
+          <View style={styles.locationTextContainer}>
+            <Text style={styles.locationLabel}>{getLocationLabel(item.locationStatus)}</Text>
+            <Text style={styles.locationSubtext}>Tap to change location</Text>
+          </View>
+        </View>
+        <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -137,12 +230,18 @@ export default function ItemDetailsScreen() {
                 <Text style={styles.nfcBadgeText}>NFC</Text>
               </View>
             )}
+            <View style={[styles.locationBadge, { backgroundColor: getLocationColor(item.locationStatus) }]}>
+              <IconSymbol name={getLocationIcon(item.locationStatus)} size={16} color={colors.card} />
+            </View>
           </View>
 
           {/* Item Info */}
           <View style={styles.infoSection}>
             <Text style={styles.itemName}>{item.name}</Text>
             <Text style={styles.itemDescription}>{item.description}</Text>
+
+            {/* Location Selector */}
+            {renderLocationSelector()}
 
             {/* Details Grid */}
             <View style={styles.detailsGrid}>
@@ -245,6 +344,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  locationBadge: {
+    position: 'absolute',
+    bottom: 30,
+    left: 30,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   infoSection: {
     padding: 20,
   },
@@ -259,6 +368,50 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 24,
     marginBottom: 24,
+  },
+  locationSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  locationCard: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  locationIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationTextContainer: {
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  locationSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   detailsGrid: {
     flexDirection: 'row',
@@ -306,12 +459,6 @@ const styles = StyleSheet.create({
   },
   nfcSection: {
     marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
   },
   nfcInfo: {
     backgroundColor: colors.card,

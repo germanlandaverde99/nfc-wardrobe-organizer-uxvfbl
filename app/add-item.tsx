@@ -14,9 +14,16 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import * as ImagePicker from 'expo-image-picker';
+import { LocationStatus } from './(tabs)/(home)/index';
 
 const categories = ['Tops', 'Bottoms', 'Outerwear', 'Dresses', 'Shoes', 'Accessories'];
 const colorOptions = ['Black', 'White', 'Blue', 'Red', 'Green', 'Yellow', 'Purple', 'Pink', 'Gray', 'Brown'];
+
+const locationOptions: { status: LocationStatus; label: string; icon: string }[] = [
+  { status: 'in-wardrobe', label: 'In Wardrobe', icon: 'house' },
+  { status: 'out-of-wardrobe', label: 'Out of Wardrobe', icon: 'figure.walk' },
+  { status: 'laundry', label: 'In Laundry', icon: 'drop' },
+];
 
 export default function AddItemScreen() {
   const { nfcTagId } = useLocalSearchParams<{ nfcTagId?: string }>();
@@ -27,7 +34,21 @@ export default function AddItemScreen() {
     category: categories[0],
     color: colorOptions[0],
     imageUrl: '',
+    locationStatus: 'in-wardrobe' as LocationStatus,
   });
+
+  const getLocationColor = (status: LocationStatus) => {
+    switch (status) {
+      case 'in-wardrobe':
+        return '#4CAF50'; // Green
+      case 'out-of-wardrobe':
+        return '#FF9800'; // Orange
+      case 'laundry':
+        return '#2196F3'; // Blue
+      default:
+        return colors.textSecondary;
+    }
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -92,6 +113,7 @@ export default function AddItemScreen() {
       nfcTagId: nfcTagId || undefined,
       id: Date.now().toString(),
       dateAdded: new Date().toISOString().split('T')[0],
+      timesWorn: 0,
     });
 
     Alert.alert(
@@ -144,6 +166,39 @@ export default function AddItemScreen() {
               formData.color === color && styles.selectorButtonTextActive
             ]}>
               {color}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderLocationSelector = () => (
+    <View style={styles.selectorContainer}>
+      <Text style={styles.label}>Current Location</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+        {locationOptions.map((option) => (
+          <TouchableOpacity
+            key={option.status}
+            style={[
+              styles.locationButton,
+              formData.locationStatus === option.status && [
+                styles.locationButtonActive,
+                { backgroundColor: getLocationColor(option.status) }
+              ]
+            ]}
+            onPress={() => setFormData(prev => ({ ...prev, locationStatus: option.status }))}
+          >
+            <IconSymbol 
+              name={option.icon} 
+              size={16} 
+              color={formData.locationStatus === option.status ? colors.card : getLocationColor(option.status)} 
+            />
+            <Text style={[
+              styles.locationButtonText,
+              formData.locationStatus === option.status && styles.locationButtonTextActive
+            ]}>
+              {option.label}
             </Text>
           </TouchableOpacity>
         ))}
@@ -217,6 +272,7 @@ export default function AddItemScreen() {
 
             {renderCategorySelector()}
             {renderColorSelector()}
+            {renderLocationSelector()}
           </View>
 
           {/* Save Button */}
@@ -325,6 +381,29 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   selectorButtonTextActive: {
+    color: colors.card,
+  },
+  locationButton: {
+    backgroundColor: colors.card,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: colors.textSecondary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  locationButtonActive: {
+    borderColor: 'transparent',
+  },
+  locationButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  locationButtonTextActive: {
     color: colors.card,
   },
   saveButton: {
