@@ -13,7 +13,22 @@ import {
 import { Stack, router } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors, commonStyles } from '@/styles/commonStyles';
-import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
+
+// Conditionally import NFC manager only on native platforms
+let NfcManager: any = null;
+let NfcTech: any = null;
+let Ndef: any = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    const nfcModule = require('react-native-nfc-manager');
+    NfcManager = nfcModule.default;
+    NfcTech = nfcModule.NfcTech;
+    Ndef = nfcModule.Ndef;
+  } catch (error) {
+    console.log('NFC Manager not available:', error);
+  }
+}
 
 export type LocationStatus = 'in-wardrobe' | 'out-of-wardrobe' | 'laundry';
 
@@ -77,11 +92,29 @@ export default function WardrobeScreen() {
   useEffect(() => {
     checkNfcSupport();
     return () => {
-      NfcManager.stop();
+      if (NfcManager && Platform.OS !== 'web') {
+        try {
+          NfcManager.stop();
+        } catch (error) {
+          console.log('Error stopping NFC Manager:', error);
+        }
+      }
     };
   }, []);
 
   const checkNfcSupport = async () => {
+    if (Platform.OS === 'web') {
+      console.log('NFC not available on web platform');
+      setIsNfcSupported(false);
+      return;
+    }
+
+    if (!NfcManager) {
+      console.log('NFC Manager not loaded');
+      setIsNfcSupported(false);
+      return;
+    }
+
     try {
       const supported = await NfcManager.isSupported();
       setIsNfcSupported(supported);
@@ -96,7 +129,12 @@ export default function WardrobeScreen() {
   };
 
   const scanNfcTag = async () => {
-    if (!isNfcSupported) {
+    if (Platform.OS === 'web') {
+      Alert.alert('NFC Not Available', 'NFC scanning is not available on web browsers.');
+      return;
+    }
+
+    if (!isNfcSupported || !NfcManager) {
       Alert.alert('NFC Not Supported', 'Your device does not support NFC functionality.');
       return;
     }
@@ -134,7 +172,9 @@ export default function WardrobeScreen() {
       Alert.alert('Scan Failed', 'Failed to scan NFC tag. Please try again.');
     } finally {
       setIsScanning(false);
-      NfcManager.cancelTechnologyRequest();
+      if (NfcManager) {
+        NfcManager.cancelTechnologyRequest();
+      }
     }
   };
 
@@ -334,10 +374,10 @@ export default function WardrobeScreen() {
               style={[
                 styles.scanButton,
                 isScanning && styles.scanButtonActive,
-                !isNfcSupported && styles.scanButtonDisabled
+                (!isNfcSupported || Platform.OS === 'web') && styles.scanButtonDisabled
               ]}
               onPress={scanNfcTag}
-              disabled={isScanning || !isNfcSupported}
+              disabled={isScanning || !isNfcSupported || Platform.OS === 'web'}
             >
               <IconSymbol 
                 name={isScanning ? "wave.3.right" : "wave.3.right"} 
@@ -348,7 +388,12 @@ export default function WardrobeScreen() {
                 {isScanning ? 'Scanning...' : 'Scan NFC Tag'}
               </Text>
             </TouchableOpacity>
-            {!isNfcSupported && (
+            {Platform.OS === 'web' && (
+              <Text style={styles.nfcWarning}>
+                NFC scanning is not available on web browsers
+              </Text>
+            )}
+            {Platform.OS !== 'web' && !isNfcSupported && (
               <Text style={styles.nfcWarning}>
                 NFC is not supported on this device
               </Text>
